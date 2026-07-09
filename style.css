@@ -239,9 +239,9 @@ body{
   width:18px; height:18px; accent-color:var(--accent); z-index:2;
 }
 
-/* SQUARE LABEL */
+/* PRODUCT LABEL */
 .slot-label{
-  aspect-ratio:1/1;
+  aspect-ratio:3/2;
   background:#fff;
   border:2.5px solid var(--ink);
   border-radius:5px;
@@ -252,29 +252,29 @@ body{
 }
 .slot-label::before{
   content:"";
-  position:absolute; inset:5px;
+  position:absolute; inset:4px;
   border:1px solid var(--line-soft);
   border-radius:2px;
   pointer-events:none;
 }
-.slot-label .label-zone{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
-  text-align:center; padding:6px 4px 5px;
+.slot-label .label-item{
+  font-family:'Inter',sans-serif;
+  font-size:13px; font-weight:800; letter-spacing:-0.01em;
+  text-align:center; padding:8px 6px 6px;
   border-bottom:2px solid var(--ink);
-  background:var(--ink);
-  color:#fff;
+  line-height:1.15;
+  min-height:2.4em;
+  display:flex; align-items:center; justify-content:center;
 }
 .slot-label .barcode-area{
   flex:1; display:flex; align-items:center; justify-content:center;
-  padding:10px 8px 4px;
+  padding:8px 10px 2px;
 }
 .slot-label .barcode-area svg{ width:100%; height:auto; max-height:100%; }
 .slot-label .slot-id{
   font-family:'IBM Plex Mono',monospace;
-  font-weight:800; font-size:18px; letter-spacing:.02em;
-  text-align:center; padding:6px 2px 10px;
-  border-top:2px solid var(--ink);
+  font-weight:700; font-size:13px; letter-spacing:.06em;
+  text-align:center; padding:2px 4px 8px;
   word-break:break-all;
 }
 
@@ -391,41 +391,42 @@ body{
 #printArea{ display:none; }
 
 @media print{
+  @page{ size: letter portrait; margin:10mm; }
+
   body *{ visibility:hidden; }
   #printArea, #printArea *{ visibility:visible; }
   #printArea{
     display:block;
-    position:absolute; top:0; left:0; width:100%;
+    position:absolute; top:0; left:0; width:100%; margin:0; padding:0;
   }
   .print-sheet{
     display:grid;
-    gap:6mm;
-    padding:8mm;
+    gap:5mm 5mm;
+    width:100%;
     page-break-after:always;
   }
-  .print-sheet.cols-2{ grid-template-columns:repeat(2,1fr); }
-  .print-sheet.cols-3{ grid-template-columns:repeat(3,1fr); }
-  .print-sheet.cols-1{ grid-template-columns:1fr; }
+  .print-sheet:last-child{ page-break-after:auto; }
+  .print-sheet.cols-1{ grid-template-columns:repeat(1,1fr); grid-auto-rows:70mm; }
+  .print-sheet.cols-2{ grid-template-columns:repeat(2,1fr); grid-auto-rows:60mm; }
+  .print-sheet.cols-3{ grid-template-columns:repeat(3,1fr); grid-auto-rows:45mm; }
   .print-label{
-    border:2px solid #000;
-    border-radius:3px;
+    border:1.5px solid #000;
+    border-radius:2px;
     display:flex; flex-direction:column; overflow:hidden;
-    aspect-ratio:1/1;
     break-inside:avoid;
   }
-  .print-label .label-zone{
-    background:#000; color:#fff;
-    font-family:'IBM Plex Mono',monospace;
-    font-size:9px; font-weight:700; text-align:center;
-    padding:4px 2px; letter-spacing:.08em; text-transform:uppercase;
+  .print-label .label-item{
+    font-family:'Inter',sans-serif; font-weight:800;
+    text-align:center; padding:4px 4px 3px; border-bottom:1.5px solid #000;
+    font-size:11px; line-height:1.15;
   }
   .print-label .barcode-area{
-    flex:1; display:flex; align-items:center; justify-content:center; padding:6px;
+    flex:1; display:flex; align-items:center; justify-content:center; padding:4px 8px;
   }
   .print-label .barcode-area svg{ width:100%; height:auto; }
   .print-label .slot-id{
-    font-family:'IBM Plex Mono',monospace; font-weight:800;
-    text-align:center; padding:4px 2px 8px; border-top:2px solid #000;
-    font-size:13px; word-break:break-all;
+    font-family:'IBM Plex Mono',monospace; font-weight:700;
+    text-align:center; padding:2px 4px 5px;
+    font-size:10.5px; word-break:break-all;
   }
 }

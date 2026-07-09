@@ -105,7 +105,7 @@ function render(){
     card.innerHTML = `
       <input type="checkbox" class="check" ${et.selected ? 'checked' : ''}>
       <div class="slot-label">
-        <div class="label-zone">${et.item ? 'ITEM · ' + escapeHtml(et.item) : 'CÓDIGO'}</div>
+        <div class="label-item">${et.item ? escapeHtml(et.item) : '<span style="color:var(--muted);font-weight:600;">Sin nombre de producto</span>'}</div>
         <div class="barcode-area">
           <svg class="barcode-svg"></svg>
         </div>
@@ -354,7 +354,7 @@ function imprimirSeleccionadas(){
       const label = document.createElement('div');
       label.className = 'print-label';
       label.innerHTML = `
-        <div class="label-zone">${et.item ? 'ITEM · ' + escapeHtml(et.item) : 'CÓDIGO'}</div>
+        <div class="label-item">${et.item ? escapeHtml(et.item) : ''}</div>
         <div class="barcode-area"><svg class="print-barcode-svg"></svg></div>
         <div class="slot-id">${escapeHtml(et.upc)}</div>
       `;
