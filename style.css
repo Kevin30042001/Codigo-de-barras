@@ -429,14 +429,18 @@ body{
   }
   .print-sheet{
     display:grid;
-    gap:5mm 5mm;
+    gap:3mm 3mm;
     width:100%;
+    height:100%;
     page-break-after:always;
+    grid-template-rows:repeat(var(--filas-hoja, 4), 1fr);
   }
   .print-sheet:last-child{ page-break-after:auto; }
-  .print-sheet.cols-1{ grid-template-columns:repeat(1,1fr); grid-auto-rows:70mm; }
-  .print-sheet.cols-2{ grid-template-columns:repeat(2,1fr); grid-auto-rows:60mm; }
-  .print-sheet.cols-3{ grid-template-columns:repeat(3,1fr); grid-auto-rows:45mm; }
+  .print-sheet.cols-1{ grid-template-columns:repeat(1,1fr); }
+  .print-sheet.cols-2{ grid-template-columns:repeat(2,1fr); }
+  .print-sheet.cols-3{ grid-template-columns:repeat(3,1fr); }
+  .print-sheet.cols-4{ grid-template-columns:repeat(4,1fr); }
+  .print-sheet.cols-5{ grid-template-columns:repeat(5,1fr); }
   .print-label{
     border:1.5px solid #000;
     border-radius:2px;
@@ -445,16 +449,24 @@ body{
   }
   .print-label .label-item{
     font-family:'Inter',sans-serif; font-weight:800;
-    text-align:center; padding:4px 4px 3px; border-bottom:1.5px solid #000;
-    font-size:11px; line-height:1.15;
+    text-align:center; padding:3px 3px 2px; border-bottom:1.2px solid #000;
+    font-size:9.5px; line-height:1.1;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
   }
   .print-label .barcode-area{
-    flex:1; display:flex; align-items:center; justify-content:center; padding:4px 8px;
+    flex:1; display:flex; align-items:center; justify-content:center; padding:2px 5px;
+    min-height:0;
   }
-  .print-label .barcode-area svg{ width:100%; height:auto; }
+  .print-label .barcode-area svg{ width:100%; height:100%; max-height:100%; }
   .print-label .slot-id{
     font-family:'IBM Plex Mono',monospace; font-weight:700;
-    text-align:center; padding:2px 4px 5px;
-    font-size:10.5px; word-break:break-all;
+    text-align:center; padding:1px 3px 3px;
+    font-size:8.5px; word-break:break-all;
   }
+
+  /* Hojas muy densas (18/24/30 por página): texto aún más compacto */
+  .print-sheet.cols-4 .label-item,
+  .print-sheet.cols-5 .label-item{ font-size:8px; padding:2px; }
+  .print-sheet.cols-4 .slot-id,
+  .print-sheet.cols-5 .slot-id{ font-size:7.5px; padding:1px 2px 2px; }
 }

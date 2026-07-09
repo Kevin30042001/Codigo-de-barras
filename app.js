@@ -335,6 +335,22 @@ function marcarError(item, detalle){
 }
 
 // =========================================================
+// GRID DE IMPRESIÓN: calcula columnas/filas según cantidad por página
+// =========================================================
+
+function calcularGrid(porPagina){
+  const mapa = {
+    1:  { cols: 1, filas: 1 },
+    8:  { cols: 2, filas: 4 },
+    12: { cols: 3, filas: 4 },
+    18: { cols: 3, filas: 6 },
+    24: { cols: 4, filas: 6 },
+    30: { cols: 5, filas: 6 }
+  };
+  return mapa[porPagina] || { cols: 3, filas: Math.ceil(porPagina / 3) };
+}
+
+// =========================================================
 // IMPRESIÓN
 // =========================================================
 
@@ -343,7 +359,7 @@ function imprimirSeleccionadas(){
   if(seleccionadas.length === 0) return;
 
   const porPagina = parseInt(printLayout.value, 10);
-  const cols = porPagina === 1 ? 1 : (porPagina === 8 ? 2 : 3);
+  const { cols, filas } = calcularGrid(porPagina);
 
   printArea.innerHTML = '';
 
@@ -351,6 +367,7 @@ function imprimirSeleccionadas(){
     const grupo = seleccionadas.slice(i, i + porPagina);
     const sheet = document.createElement('div');
     sheet.className = `print-sheet cols-${cols}`;
+    sheet.style.setProperty('--filas-hoja', filas);
 
     grupo.forEach(et => {
       const label = document.createElement('div');
@@ -374,7 +391,7 @@ function imprimirSeleccionadas(){
         format: 'CODE128',
         displayValue: false,
         margin: 0,
-        height: 45,
+        height: porPagina >= 24 ? 28 : 45,
         background: 'transparent'
       });
     }catch(err){ /* código inválido, se deja vacío */ }
@@ -495,13 +512,13 @@ function exportarPDF(){
   const doc = new jsPDF({ unit: 'mm', format: 'letter' });
 
   const porPagina = parseInt(printLayout.value, 10);
-  const cols = porPagina === 1 ? 1 : (porPagina === 8 ? 2 : 3);
-  const filas = porPagina === 1 ? 4 : (porPagina === 8 ? 4 : 4);
+  const { cols, filas } = calcularGrid(porPagina);
+  const compacta = porPagina >= 18;
 
-  const margen = 10;
+  const margen = 8;
   const anchoUtil = 215.9 - margen * 2; // carta: 8.5in = 215.9mm
   const altoUtil = 279.4 - margen * 2;  // carta: 11in = 279.4mm
-  const gap = 5;
+  const gap = compacta ? 2.5 : 5;
   const anchoCelda = (anchoUtil - gap * (cols - 1)) / cols;
   const altoCelda = (altoUtil - gap * (filas - 1)) / filas;
 
@@ -516,29 +533,32 @@ function exportarPDF(){
 
     // Marco de la etiqueta
     doc.setDrawColor(0);
-    doc.setLineWidth(0.4);
+    doc.setLineWidth(0.3);
     doc.rect(x, y, anchoCelda, altoCelda);
 
     // Nombre del producto
-    doc.setFontSize(9);
+    const tamNombre = compacta ? 6.5 : 9;
+    doc.setFontSize(tamNombre);
     doc.setFont(undefined, 'bold');
-    const nombreLineas = doc.splitTextToSize(et.item || '', anchoCelda - 4);
-    doc.text(nombreLineas.slice(0,2), x + anchoCelda/2, y + 5, { align: 'center' });
-    doc.setLineWidth(0.3);
-    doc.line(x, y + 10, x + anchoCelda, y + 10);
+    const altoTitulo = compacta ? 6 : 10;
+    const nombreLineas = doc.splitTextToSize(et.item || '', anchoCelda - 3);
+    doc.text(nombreLineas.slice(0, compacta ? 1 : 2), x + anchoCelda/2, y + (compacta ? 3.2 : 5), { align: 'center' });
+    doc.setLineWidth(0.25);
+    doc.line(x, y + altoTitulo, x + anchoCelda, y + altoTitulo);
 
     // Código de barras
     const png = barcodeAPngDataUrl(et.upc);
     if(png){
-      const imgAlto = altoCelda - 20;
-      const imgAncho = anchoCelda - 8;
-      doc.addImage(png, 'PNG', x + 4, y + 12, imgAncho, imgAlto);
+      const margenTexto = compacta ? 6 : 8;
+      const imgAlto = altoCelda - altoTitulo - margenTexto;
+      const imgAncho = anchoCelda - (compacta ? 3 : 8);
+      doc.addImage(png, 'PNG', x + (anchoCelda - imgAncho)/2, y + altoTitulo + 1.5, imgAncho, Math.max(imgAlto, 4));
     }
 
     // UPC como texto
-    doc.setFontSize(8);
+    doc.setFontSize(compacta ? 6 : 8);
     doc.setFont('courier', 'normal');
-    doc.text(String(et.upc), x + anchoCelda/2, y + altoCelda - 3, { align: 'center' });
+    doc.text(String(et.upc), x + anchoCelda/2, y + altoCelda - 1.8, { align: 'center' });
   });
 
   doc.save(`${nombreArchivoBase()}.pdf`);
