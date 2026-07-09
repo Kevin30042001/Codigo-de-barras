@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WMS·IT — Etiquetas de código de barras</title>
+
+<!-- Fuentes -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
+
+<!-- Librerías externas (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+<!-- Diseño -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand"><span class="mark">W</span> WMS · IT</div>
+    <div class="nav-section">General</div>
+    <a class="nav-item active">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="2" height="10"/><rect x="7" y="7" width="1" height="10"/><rect x="10" y="7" width="3" height="10"/><rect x="15" y="7" width="1" height="10"/><rect x="18" y="7" width="2" height="10"/></svg>
+      Etiquetas de código de barras
+    </a>
+    <div class="sidebar-foot"><div class="avatar">KC</div> Kevin Chávez</div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div class="topbar">
+      <div>
+        <h1>Etiquetas de código de barras</h1>
+        <div class="sub">Hortifruti · Centro de distribución Santa Tecla</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-ghost" id="btnLimpiar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>
+          Limpiar todo
+        </button>
+        <button class="btn-primary" id="btnAgregarManual">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar manual
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- IMPORTAR DESDE EXCEL -->
+      <div class="section-head">
+        <h2>Importar códigos desde Excel</h2>
+        <span class="hint">Columnas: UPC · ITEM</span>
+      </div>
+      <div class="import-panel">
+        <div class="import-body">
+          <div class="dropzone" id="dropzone">
+            <div class="dz-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-deep)" stroke-width="1.8">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6"/>
+              </svg>
+            </div>
+            <div class="dz-text">
+              <p class="dz-title">Arrastra tu archivo Excel con los códigos</p>
+              <p class="dz-sub">Debe tener una columna <strong>UPC</strong> (código) y opcionalmente <strong>ITEM</strong> (referencia adicional)</p>
+              <div class="dz-formats">
+                <span>.XLSX</span>
+                <span>.XLS</span>
+                <span>.CSV</span>
+              </div>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+            <button class="btn-primary" id="btnSeleccionar">Seleccionar archivo</button>
+          </div>
+
+          <!-- Estado de importación -->
+          <div class="import-queue" id="importQueue"></div>
+        </div>
+      </div>
+
+      <!-- BARRA DE HERRAMIENTAS -->
+      <div class="section-head">
+        <h2>Etiquetas generadas</h2>
+        <span class="hint" id="totalCount">0 en total</span>
+      </div>
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <label class="select-all">
+            <input type="checkbox" id="checkAll">
+            Seleccionar todo
+          </label>
+          <span class="sel-count" id="selCount">0 seleccionadas</span>
+        </div>
+        <div class="toolbar-right">
+          <input type="text" id="buscador" class="search-input" placeholder="Buscar por UPC o item...">
+        </div>
+      </div>
+
+      <!-- GRID DE ETIQUETAS -->
+      <div class="grid" id="grid">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="2" height="10"/><rect x="7" y="7" width="1" height="10"/><rect x="10" y="7" width="3" height="10"/><rect x="15" y="7" width="1" height="10"/><rect x="18" y="7" width="2" height="10"/></svg>
+          </div>
+          <p class="empty-title">Todavía no hay etiquetas</p>
+          <p class="empty-sub">Importa un Excel o agrega una etiqueta manual para empezar</p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- BARRA FLOTANTE DE IMPRESIÓN -->
+  <div class="print-bar" id="printBar">
+    <div class="info"><strong id="printSelCount">0</strong> etiquetas seleccionadas</div>
+    <select id="printLayout">
+      <option value="8">Hoja carta · 8 por página</option>
+      <option value="12">Hoja carta · 12 por página</option>
+      <option value="1">Rollo continuo · 1 por etiqueta</option>
+    </select>
+    <button class="btn-print" id="btnImprimir">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Imprimir seleccionadas
+    </button>
+  </div>
+
+  <!-- MODAL: AGREGAR/EDITAR ETIQUETA MANUAL -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitulo">Nueva etiqueta</h3>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label">Código UPC</label>
+        <input type="text" id="inputUPC" class="field-input" placeholder="Ej. 0304040504050406">
+        <label class="field-label">Item (referencia adicional)</label>
+        <input type="text" id="inputItem" class="field-input" placeholder="Ej. 7847589">
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="btnCancelarModal">Cancelar</button>
+        <button class="btn-primary" id="btnGuardarModal">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ÁREA DE IMPRESIÓN (se llena dinámicamente, solo visible en impresión) -->
+  <div id="printArea"></div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
