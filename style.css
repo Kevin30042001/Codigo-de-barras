@@ -431,9 +431,10 @@ body{
     display:grid;
     gap:3mm 3mm;
     width:100%;
-    height:100%;
+    height:277mm; /* alto carta (279.4mm) menos márgenes de @page (10mm x2) */
     page-break-after:always;
     grid-template-rows:repeat(var(--filas-hoja, 4), 1fr);
+    align-content:stretch;
   }
   .print-sheet:last-child{ page-break-after:auto; }
   .print-sheet.cols-1{ grid-template-columns:repeat(1,1fr); }
