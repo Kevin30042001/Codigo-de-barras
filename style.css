@@ -421,20 +421,27 @@ body{
 @media print{
   @page{ size: letter portrait; margin:10mm; }
 
-  body *{ visibility:hidden; }
-  #printArea, #printArea *{ visibility:visible; }
+  body{ margin:0; padding:0; background:#fff; }
+  .app{ display:block !important; }
+  .app > .sidebar,
+  .app > main,
+  .print-bar,
+  .modal-overlay{ display:none !important; }
+
   #printArea{
     display:block;
-    position:absolute; top:0; left:0; width:100%; margin:0; padding:0;
+    position:static;
+    width:100%;
   }
   .print-sheet{
     display:grid;
-    gap:3mm 3mm;
+    gap:2.5mm 2.5mm;
     width:100%;
-    height:277mm; /* alto carta (279.4mm) menos márgenes de @page (10mm x2) */
+    height:258mm; /* alto útil real: 279.4mm carta - 20mm de márgenes, con margen de seguridad */
     page-break-after:always;
     grid-template-rows:repeat(var(--filas-hoja, 4), 1fr);
     align-content:stretch;
+    overflow:hidden;
   }
   .print-sheet:last-child{ page-break-after:auto; }
   .print-sheet.cols-1{ grid-template-columns:repeat(1,1fr); }
