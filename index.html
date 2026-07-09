@@ -97,8 +97,16 @@
             Seleccionar todo
           </label>
           <span class="sel-count" id="selCount">0 seleccionadas</span>
+          <div class="filter-tabs" id="filterTabs"></div>
         </div>
         <div class="toolbar-right">
+          <select id="selectOrden" class="sort-select">
+            <option value="llegada">Orden de llegada</option>
+            <option value="item-az">Producto A → Z</option>
+            <option value="item-za">Producto Z → A</option>
+            <option value="upc-asc">UPC ascendente</option>
+            <option value="upc-desc">UPC descendente</option>
+          </select>
           <input type="text" id="buscador" class="search-input" placeholder="Buscar por UPC o item...">
         </div>
       </div>

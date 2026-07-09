@@ -8,6 +8,38 @@
 // cada etiqueta: { id, upc, item, source, selected }
 let etiquetas = [];
 let contadorId = 1;
+let ordenActual = 'llegada';   // llegada | item-az | item-za | upc-asc | upc-desc
+let filtroOrigen = 'todos';    // 'todos' o nombre de archivo
+
+// ---------- Persistencia (localStorage) ----------
+const STORAGE_KEY = 'wmsit-etiquetas-v1';
+
+function guardarEstado(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      etiquetas,
+      contadorId,
+      ordenActual
+    }));
+  }catch(err){
+    console.warn('No se pudo guardar en localStorage:', err);
+  }
+}
+
+function cargarEstado(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    if(Array.isArray(data.etiquetas)){
+      etiquetas = data.etiquetas;
+      contadorId = data.contadorId || (Math.max(0, ...etiquetas.map(e => e.id)) + 1);
+      ordenActual = data.ordenActual || 'llegada';
+    }
+  }catch(err){
+    console.warn('No se pudo leer localStorage:', err);
+  }
+}
 
 // ---------- Referencias DOM ----------
 const grid = document.getElementById('grid');
@@ -52,11 +84,45 @@ function filtroTexto(){
 
 function etiquetasFiltradas(){
   const q = filtroTexto();
-  if(!q) return etiquetas;
-  return etiquetas.filter(e =>
-    e.upc.toLowerCase().includes(q) ||
-    (e.item || '').toLowerCase().includes(q)
-  );
+  let lista = etiquetas;
+
+  // Filtro por archivo de origen
+  if(filtroOrigen !== 'todos'){
+    lista = lista.filter(e => e.source === filtroOrigen);
+  }
+
+  // Filtro por texto de búsqueda
+  if(q){
+    lista = lista.filter(e =>
+      e.upc.toLowerCase().includes(q) ||
+      (e.item || '').toLowerCase().includes(q)
+    );
+  }
+
+  // Ordenamiento
+  lista = [...lista];
+  switch(ordenActual){
+    case 'item-az':
+      lista.sort((a, b) => (a.item || '').localeCompare(b.item || '', 'es'));
+      break;
+    case 'item-za':
+      lista.sort((a, b) => (b.item || '').localeCompare(a.item || '', 'es'));
+      break;
+    case 'upc-asc':
+      lista.sort((a, b) => String(a.upc).localeCompare(String(b.upc), undefined, { numeric: true }));
+      break;
+    case 'upc-desc':
+      lista.sort((a, b) => String(b.upc).localeCompare(String(a.upc), undefined, { numeric: true }));
+      break;
+    // 'llegada': orden original, no se toca
+  }
+
+  return lista;
+}
+
+function origenesUnicos(){
+  const set = new Set(etiquetas.map(e => e.source));
+  return [...set];
 }
 
 function actualizarContadores(){
@@ -75,7 +141,42 @@ function actualizarContadores(){
 // RENDER
 // =========================================================
 
+function renderTabsOrigen(){
+  const cont = document.getElementById('filterTabs');
+  if(!cont) return;
+
+  const origenes = origenesUnicos();
+
+  // Solo mostrar tabs si hay más de un origen
+  if(origenes.length <= 1){
+    cont.innerHTML = '';
+    filtroOrigen = 'todos';
+    return;
+  }
+
+  // Si el filtro apunta a un origen que ya no existe, resetear
+  if(filtroOrigen !== 'todos' && !origenes.includes(filtroOrigen)){
+    filtroOrigen = 'todos';
+  }
+
+  let html = `<div class="filter-tab ${filtroOrigen === 'todos' ? 'active' : ''}" data-origen="todos">Todos</div>`;
+  origenes.forEach(o => {
+    const nombre = o.length > 22 ? o.slice(0, 20) + '…' : o;
+    html += `<div class="filter-tab ${filtroOrigen === o ? 'active' : ''}" data-origen="${escapeHtml(o)}" title="${escapeHtml(o)}">${escapeHtml(nombre)}</div>`;
+  });
+  cont.innerHTML = html;
+
+  cont.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      filtroOrigen = tab.dataset.origen;
+      render();
+    });
+  });
+}
+
 function render(){
+  guardarEstado();
+  renderTabsOrigen();
   const visibles = etiquetasFiltradas();
 
   // Limpiar grid (menos el add-card y empty state que reconstruimos)
@@ -143,6 +244,7 @@ function render(){
       et.selected = e.target.checked;
       card.classList.toggle('selected', et.selected);
       actualizarContadores();
+      guardarEstado();
     });
     card.querySelector('.edit-btn').addEventListener('click', () => abrirModalEditar(et.id));
     card.querySelector('.delete-btn').addEventListener('click', () => eliminarEtiqueta(et.id));
@@ -192,10 +294,12 @@ function eliminarEtiqueta(id){
 
 function limpiarTodo(){
   if(etiquetas.length === 0) return;
-  const ok = confirm('¿Eliminar todas las etiquetas generadas? Esta acción no se puede deshacer.');
+  const ok = confirm('¿Eliminar todas las etiquetas generadas? También se borrarán los datos guardados en este navegador. Esta acción no se puede deshacer.');
   if(ok){
     etiquetas = [];
+    filtroOrigen = 'todos';
     importQueue.innerHTML = '';
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(err){}
     render();
   }
 }
@@ -675,5 +779,16 @@ downloadMenu.addEventListener('click', async (e) => {
   }
 });
 
-// Render inicial
+// Selector de ordenamiento
+const selectOrden = document.getElementById('selectOrden');
+if(selectOrden){
+  selectOrden.addEventListener('change', () => {
+    ordenActual = selectOrden.value;
+    render();
+  });
+}
+
+// Cargar datos guardados de sesiones anteriores y render inicial
+cargarEstado();
+if(selectOrden) selectOrden.value = ordenActual;
 render();
