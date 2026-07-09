@@ -20,6 +20,8 @@ const printBar = document.getElementById('printBar');
 const printSelCount = document.getElementById('printSelCount');
 const printArea = document.getElementById('printArea');
 const importQueue = document.getElementById('importQueue');
+const btnDescargarToggle = document.getElementById('btnDescargarToggle');
+const downloadMenu = document.getElementById('downloadMenu');
 
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
@@ -432,6 +434,226 @@ inputItem.addEventListener('keydown', (e) => { if(e.key === 'Enter') guardarModa
 
 btnLimpiar.addEventListener('click', limpiarTodo);
 btnImprimir.addEventListener('click', imprimirSeleccionadas);
+
+// =========================================================
+// UTILIDAD: generar un canvas de código de barras aislado
+// (para usarlo como imagen en PDF y Word, sin depender del DOM visible)
+// =========================================================
+
+function barcodeAPngDataUrl(upc){
+  const canvas = document.createElement('canvas');
+  try{
+    JsBarcode(canvas, upc, {
+      format: 'CODE128',
+      displayValue: false,
+      margin: 4,
+      height: 60,
+      background: '#ffffff'
+    });
+    return canvas.toDataURL('image/png');
+  }catch(err){
+    return null;
+  }
+}
+
+function nombreArchivoBase(){
+  const fecha = new Date().toISOString().slice(0,10);
+  return `etiquetas-codigo-barras-${fecha}`;
+}
+
+// =========================================================
+// EXPORTAR A EXCEL (.xlsx)
+// =========================================================
+
+function exportarExcel(){
+  const seleccionadas = etiquetas.filter(e => e.selected);
+  if(seleccionadas.length === 0) return;
+
+  const datos = seleccionadas.map(e => ({
+    'UPC': e.upc,
+    'ITEM': e.item,
+    'Origen': e.source
+  }));
+
+  const hoja = XLSX.utils.json_to_sheet(datos);
+  hoja['!cols'] = [{ wch: 22 }, { wch: 35 }, { wch: 28 }];
+
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, 'Etiquetas');
+  XLSX.writeFile(libro, `${nombreArchivoBase()}.xlsx`);
+}
+
+// =========================================================
+// EXPORTAR A PDF (.pdf) — etiquetas visuales con código real
+// =========================================================
+
+function exportarPDF(){
+  const seleccionadas = etiquetas.filter(e => e.selected);
+  if(seleccionadas.length === 0) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+
+  const porPagina = parseInt(printLayout.value, 10);
+  const cols = porPagina === 1 ? 1 : (porPagina === 8 ? 2 : 3);
+  const filas = porPagina === 1 ? 4 : (porPagina === 8 ? 4 : 4);
+
+  const margen = 10;
+  const anchoUtil = 215.9 - margen * 2; // carta: 8.5in = 215.9mm
+  const altoUtil = 279.4 - margen * 2;  // carta: 11in = 279.4mm
+  const gap = 5;
+  const anchoCelda = (anchoUtil - gap * (cols - 1)) / cols;
+  const altoCelda = (altoUtil - gap * (filas - 1)) / filas;
+
+  seleccionadas.forEach((et, i) => {
+    const posEnPagina = i % porPagina;
+    if(i > 0 && posEnPagina === 0) doc.addPage();
+
+    const col = posEnPagina % cols;
+    const fila = Math.floor(posEnPagina / cols);
+    const x = margen + col * (anchoCelda + gap);
+    const y = margen + fila * (altoCelda + gap);
+
+    // Marco de la etiqueta
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.4);
+    doc.rect(x, y, anchoCelda, altoCelda);
+
+    // Nombre del producto
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    const nombreLineas = doc.splitTextToSize(et.item || '', anchoCelda - 4);
+    doc.text(nombreLineas.slice(0,2), x + anchoCelda/2, y + 5, { align: 'center' });
+    doc.setLineWidth(0.3);
+    doc.line(x, y + 10, x + anchoCelda, y + 10);
+
+    // Código de barras
+    const png = barcodeAPngDataUrl(et.upc);
+    if(png){
+      const imgAlto = altoCelda - 20;
+      const imgAncho = anchoCelda - 8;
+      doc.addImage(png, 'PNG', x + 4, y + 12, imgAncho, imgAlto);
+    }
+
+    // UPC como texto
+    doc.setFontSize(8);
+    doc.setFont('courier', 'normal');
+    doc.text(String(et.upc), x + anchoCelda/2, y + altoCelda - 3, { align: 'center' });
+  });
+
+  doc.save(`${nombreArchivoBase()}.pdf`);
+}
+
+// =========================================================
+// EXPORTAR A WORD (.docx) — tabla con imagen del código
+// =========================================================
+
+async function exportarWord(){
+  const seleccionadas = etiquetas.filter(e => e.selected);
+  if(seleccionadas.length === 0) return;
+
+  const { Document, Packer, Table, TableRow, TableCell, Paragraph, ImageRun, TextRun, WidthType, HeadingLevel } = window.docx;
+
+  function dataUrlABuffer(dataUrl){
+    const base64 = dataUrl.split(',')[1];
+    const binario = atob(base64);
+    const bytes = new Uint8Array(binario.length);
+    for(let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+    return bytes;
+  }
+
+  const filasCabecera = new TableRow({
+    tableHeader: true,
+    children: ['UPC', 'ITEM', 'CÓDIGO DE BARRAS'].map(texto =>
+      new TableCell({
+        children: [new Paragraph({ children: [new TextRun({ text: texto, bold: true })] })],
+        width: { size: texto === 'CÓDIGO DE BARRAS' ? 40 : 30, type: WidthType.PERCENTAGE }
+      })
+    )
+  });
+
+  const filasDatos = seleccionadas.map(et => {
+    const png = barcodeAPngDataUrl(et.upc);
+    const celdaImagen = png
+      ? new TableCell({
+          children: [new Paragraph({
+            children: [new ImageRun({
+              data: dataUrlABuffer(png),
+              transformation: { width: 220, height: 60 }
+            })]
+          })]
+        })
+      : new TableCell({ children: [new Paragraph('—')] });
+
+    return new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph(String(et.upc))] }),
+        new TableCell({ children: [new Paragraph(et.item || '—')] }),
+        celdaImagen
+      ]
+    });
+  });
+
+  const documento = new Document({
+    sections: [{
+      children: [
+        new Paragraph({ text: 'Etiquetas de código de barras', heading: HeadingLevel.HEADING_1 }),
+        new Paragraph({ text: 'WMS·IT · Hortifruti · Centro de distribución Santa Tecla', spacing: { after: 300 } }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [filasCabecera, ...filasDatos]
+        })
+      ]
+    }]
+  });
+
+  const blob = await Packer.toBlob(documento);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${nombreArchivoBase()}.docx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// =========================================================
+// EVENTOS: menú de descarga
+// =========================================================
+
+btnDescargarToggle.addEventListener('click', (e) => {
+  e.stopPropagation();
+  downloadMenu.classList.toggle('visible');
+});
+
+document.addEventListener('click', () => {
+  downloadMenu.classList.remove('visible');
+});
+
+downloadMenu.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-formato]');
+  if(!btn) return;
+
+  const seleccionadas = etiquetas.filter(x => x.selected);
+  if(seleccionadas.length === 0) return;
+
+  const formato = btn.dataset.formato;
+  const textoOriginal = btn.innerHTML;
+  btn.innerHTML = 'Generando…';
+  btn.disabled = true;
+
+  try{
+    if(formato === 'excel') exportarExcel();
+    else if(formato === 'pdf') exportarPDF();
+    else if(formato === 'word') await exportarWord();
+  }catch(err){
+    console.error(err);
+    alert('Ocurrió un error generando el archivo. Revisa la consola para más detalle.');
+  }finally{
+    btn.innerHTML = textoOriginal;
+    btn.disabled = false;
+    downloadMenu.classList.remove('visible');
+  }
+});
 
 // Render inicial
 render();

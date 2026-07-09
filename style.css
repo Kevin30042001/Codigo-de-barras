@@ -350,6 +350,34 @@ body{
 }
 .print-bar .btn-print:hover{ background:#256e4e; }
 
+.download-menu-wrap{ position:relative; }
+.btn-download{
+  background:#1A211D; color:#fff; border:1px solid var(--sidebar-line);
+  padding:10px 16px; border-radius:7px; font-weight:700; font-size:13px;
+  cursor:pointer; display:flex; align-items:center; gap:8px; white-space:nowrap;
+  font-family:'Inter',sans-serif;
+}
+.btn-download:hover{ background:#232B27; }
+.download-menu{
+  position:absolute; bottom:calc(100% + 10px); right:0;
+  background:var(--panel); border:1px solid var(--line); border-radius:9px;
+  box-shadow:0 12px 30px rgba(0,0,0,.25);
+  min-width:170px; overflow:hidden;
+  display:none; flex-direction:column;
+}
+.download-menu.visible{ display:flex; }
+.download-menu button{
+  background:none; border:none; text-align:left;
+  padding:11px 14px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+  color:var(--ink); cursor:pointer; display:flex; align-items:center; gap:9px;
+}
+.download-menu button:hover{ background:var(--paper); }
+.download-menu button:not(:last-child){ border-bottom:1px solid var(--line); }
+.fmt-dot{ width:8px; height:8px; border-radius:50%; flex:none; }
+.fmt-excel{ background:#1D7044; }
+.fmt-pdf{ background:#A63B3B; }
+.fmt-word{ background:#2B5FA6; }
+
 /* MODAL */
 .modal-overlay{
   position:fixed; inset:0; background:rgba(14,20,18,.5);

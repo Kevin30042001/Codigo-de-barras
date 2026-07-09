@@ -11,6 +11,9 @@
 <!-- Librerías externas (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 
 <!-- Diseño -->
 <link rel="stylesheet" href="style.css">
@@ -126,6 +129,17 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Imprimir seleccionadas
     </button>
+    <div class="download-menu-wrap">
+      <button class="btn-download" id="btnDescargarToggle">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Descargar
+      </button>
+      <div class="download-menu" id="downloadMenu">
+        <button data-formato="excel"><span class="fmt-dot fmt-excel"></span> Excel (.xlsx)</button>
+        <button data-formato="pdf"><span class="fmt-dot fmt-pdf"></span> PDF (.pdf)</button>
+        <button data-formato="word"><span class="fmt-dot fmt-word"></span> Word (.docx)</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL: AGREGAR/EDITAR ETIQUETA MANUAL -->
