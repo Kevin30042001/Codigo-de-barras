@@ -298,6 +298,21 @@ body{
 .label-meta{
   margin-top:10px; display:flex; justify-content:space-between; align-items:center;
 }
+
+/* ETIQUETA DE UBICACIÓN (SLOT): ID grande y en negrita fuerte */
+.slot-label.loc .barcode-area{
+  padding:14px 12px 2px;
+}
+.slot-label.loc .slot-id{
+  font-family:'IBM Plex Mono',monospace;
+  font-weight:800;
+  font-size:clamp(26px, 3.2vw, 38px);
+  letter-spacing:.05em;
+  text-align:center;
+  padding:2px 4px 12px;
+  word-break:break-all;
+  line-height:1;
+}
 .label-meta .source-tag{
   display:flex; align-items:center; gap:5px;
   font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted);
@@ -494,4 +509,14 @@ body{
   .print-sheet.cols-5 .label-item{ font-size:8px; padding:2px; }
   .print-sheet.cols-4 .slot-id,
   .print-sheet.cols-5 .slot-id{ font-size:7.5px; padding:1px 2px 2px; }
+
+  /* Etiquetas de ubicación (slot): ID grande y negrita fuerte */
+  .print-label.loc .slot-id{
+    font-size:26px; font-weight:800; letter-spacing:.05em; line-height:1;
+    padding:2px 2px 6px;
+  }
+  .print-sheet.cols-3 .print-label.loc .slot-id{ font-size:20px; }
+  .print-sheet.cols-4 .print-label.loc .slot-id{ font-size:16px; }
+  .print-sheet.cols-5 .print-label.loc .slot-id{ font-size:13px; }
+  .print-label.loc .barcode-area{ padding:4px 10px 2px; }
 }
