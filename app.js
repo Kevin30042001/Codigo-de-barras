@@ -341,21 +341,33 @@ function limpiarTodo(){
 function cambiarVista(vista){
   vistaActual = vista;
   filtroOrigen = 'todos';
-  buscador.value = '';
+  if(buscador) buscador.value = '';
 
   const esSlot = vista === 'slot';
 
-  document.getElementById('navProductos').classList.toggle('active', !esSlot);
-  document.getElementById('navSlots').classList.toggle('active', esSlot);
-  document.getElementById('tituloVista').textContent = esSlot ? 'Ubicaciones (slots)' : 'Etiquetas de productos';
-  document.getElementById('tituloImport').textContent = esSlot ? 'Importar ubicaciones desde Excel' : 'Importar códigos desde Excel';
-  document.getElementById('hintImport').textContent = esSlot ? 'Columna: NAME / SLOT / UBICACIÓN' : 'Columnas: UPC · ITEM';
-  document.getElementById('dzTitle').textContent = esSlot ? 'Arrastra tu archivo Excel con las ubicaciones' : 'Arrastra tu archivo Excel con los códigos';
-  document.getElementById('dzSub').innerHTML = esSlot
+  function setTexto(id, texto){
+    const el = document.getElementById(id);
+    if(el) el.textContent = texto;
+  }
+  function setHtml(id, html){
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = html;
+  }
+
+  const np = document.getElementById('navProductos');
+  const ns = document.getElementById('navSlots');
+  if(np) np.classList.toggle('active', !esSlot);
+  if(ns) ns.classList.toggle('active', esSlot);
+
+  setTexto('tituloVista', esSlot ? 'Ubicaciones (slots)' : 'Etiquetas de productos');
+  setTexto('tituloImport', esSlot ? 'Importar ubicaciones desde Excel' : 'Importar códigos desde Excel');
+  setTexto('hintImport', esSlot ? 'Columna: NAME / SLOT / UBICACIÓN' : 'Columnas: UPC · ITEM');
+  setTexto('dzTitle', esSlot ? 'Arrastra tu archivo Excel con las ubicaciones' : 'Arrastra tu archivo Excel con los códigos');
+  setHtml('dzSub', esSlot
     ? 'Con una columna con el código de cada slot (ej. <strong>S5003</strong>). Se genera una etiqueta por ubicación con letra grande.'
-    : 'Debe tener una columna <strong>UPC</strong> (ej. 0304040504050406) y opcionalmente <strong>ITEM</strong> con el nombre del producto (ej. PAPA SOLOMA 454 G)';
-  document.getElementById('btnAgregarManualTexto').textContent = esSlot ? 'Agregar ubicación' : 'Agregar manual';
-  buscador.placeholder = esSlot ? 'Buscar ubicación...' : 'Buscar por UPC o item...';
+    : 'Debe tener una columna <strong>UPC</strong> (ej. 0304040504050406) y opcionalmente <strong>ITEM</strong> con el nombre del producto (ej. PAPA SOLOMA 454 G)');
+  setTexto('btnAgregarManualTexto', esSlot ? 'Agregar ubicación' : 'Agregar manual');
+  if(buscador) buscador.placeholder = esSlot ? 'Buscar ubicación...' : 'Buscar por UPC o item...';
 
   render();
 }
@@ -789,8 +801,16 @@ function exportarPDF(){
 
     if(esSlot){
       // UBICACIÓN: código de barras arriba, ID gigante en negrita abajo
-      const tamId = compacta ? 13 : (cols <= 2 ? 30 : 22);
-      const altoTextoId = compacta ? 6 : (cols <= 2 ? 13 : 10);
+      // Tamaño dinámico: la letra crece hasta llenar el ancho de la celda
+      const texto = String(et.upc);
+      const anchoCeldaPt = anchoCelda * 2.835; // mm → puntos
+      const altoCeldaPt = altoCelda * 2.835;
+      // Courier bold: cada carácter mide ~0.6em de ancho
+      const maxPorAncho = (anchoCeldaPt * 0.88) / (0.6 * Math.max(texto.length, 3));
+      const maxPorAlto = altoCeldaPt * 0.30; // el texto puede usar hasta ~30% del alto
+      const tamId = Math.max(10, Math.min(maxPorAncho, maxPorAlto));
+      // Espacio reservado para el texto (en mm), proporcional al tamaño de letra
+      const altoTextoId = (tamId / 2.835) * 1.25;
 
       const png = barcodeAPngDataUrl(et.upc);
       if(png){
@@ -801,7 +821,7 @@ function exportarPDF(){
 
       doc.setFontSize(tamId);
       doc.setFont('courier', 'bold');
-      doc.text(String(et.upc), x + anchoCelda/2, y + altoCelda - 2.5, { align: 'center' });
+      doc.text(texto, x + anchoCelda/2, y + altoCelda - 2, { align: 'center' });
       return;
     }
 
@@ -879,7 +899,7 @@ async function exportarWord(){
   };
 
   // Tamaño del ID de ubicación según densidad (half-points)
-  const tamIdSlot = compacta ? 26 : (cols <= 2 ? 56 : 40); // 13pt / 28pt / 20pt
+  const tamIdSlot = compacta ? 40 : (cols <= 2 ? 72 : 56); // 20pt / 36pt / 28pt
 
   function celdaEtiqueta(et){
     const esSlot = (et.tipo || 'producto') === 'slot';
@@ -1038,9 +1058,14 @@ if(selectOrden){
   });
 }
 
-// Navegación entre pestañas
-document.getElementById('navProductos').addEventListener('click', () => cambiarVista('producto'));
-document.getElementById('navSlots').addEventListener('click', () => cambiarVista('slot'));
+// Navegación entre pestañas (con guardas por si el HTML no está actualizado)
+const navProductos = document.getElementById('navProductos');
+const navSlots = document.getElementById('navSlots');
+if(navProductos) navProductos.addEventListener('click', () => cambiarVista('producto'));
+if(navSlots) navSlots.addEventListener('click', () => cambiarVista('slot'));
+if(!navProductos || !navSlots){
+  console.warn('WMS·IT: no se encontraron las pestañas de navegación. ¿El index.html está actualizado?');
+}
 
 // Cargar datos guardados de sesiones anteriores y render inicial
 cargarEstado();
