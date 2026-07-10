@@ -10,6 +10,7 @@ let etiquetas = [];
 let contadorId = 1;
 let ordenActual = 'llegada';   // llegada | item-az | item-za | upc-asc | upc-desc
 let filtroOrigen = 'todos';    // 'todos' o nombre de archivo
+let vistaActual = 'producto';  // 'producto' | 'slot'
 
 // ---------- Persistencia (localStorage) ----------
 const STORAGE_KEY = 'wmsit-etiquetas-v1';
@@ -84,7 +85,8 @@ function filtroTexto(){
 
 function etiquetasFiltradas(){
   const q = filtroTexto();
-  let lista = etiquetas;
+  // Solo las de la vista actual (producto o slot)
+  let lista = etiquetas.filter(e => (e.tipo || 'producto') === vistaActual);
 
   // Filtro por archivo de origen
   if(filtroOrigen !== 'todos'){
@@ -121,14 +123,19 @@ function etiquetasFiltradas(){
 }
 
 function origenesUnicos(){
-  const set = new Set(etiquetas.map(e => e.source));
+  const set = new Set(etiquetas.filter(e => (e.tipo || 'producto') === vistaActual).map(e => e.source));
   return [...set];
+}
+
+function seleccionadasDeVista(){
+  return etiquetas.filter(e => e.selected && (e.tipo || 'producto') === vistaActual);
 }
 
 function actualizarContadores(){
   const visibles = etiquetasFiltradas();
-  totalCount.textContent = `${etiquetas.length} en total`;
-  const seleccionadas = etiquetas.filter(e => e.selected).length;
+  const deVista = etiquetas.filter(e => (e.tipo || 'producto') === vistaActual);
+  totalCount.textContent = `${deVista.length} en total`;
+  const seleccionadas = seleccionadasDeVista().length;
   selCountEl.textContent = `${seleccionadas} seleccionadas`;
   printSelCount.textContent = seleccionadas;
 
@@ -205,23 +212,44 @@ function render(){
     card.className = 'label-card' + (et.selected ? ' selected' : '');
     card.dataset.id = et.id;
 
-    card.innerHTML = `
-      <input type="checkbox" class="check" ${et.selected ? 'checked' : ''}>
-      <div class="slot-label">
-        <div class="label-item">${et.item ? escapeHtml(et.item) : '<span style="color:var(--muted);font-weight:600;">Sin nombre de producto</span>'}</div>
-        <div class="barcode-area">
-          <svg class="barcode-svg"></svg>
+    const esSlot = (et.tipo || 'producto') === 'slot';
+
+    if(esSlot){
+      card.innerHTML = `
+        <input type="checkbox" class="check" ${et.selected ? 'checked' : ''}>
+        <div class="slot-label loc">
+          <div class="barcode-area">
+            <svg class="barcode-svg"></svg>
+          </div>
+          <div class="slot-id">${escapeHtml(et.upc)}</div>
         </div>
-        <div class="slot-id">${escapeHtml(et.upc)}</div>
-      </div>
-      <div class="label-meta">
-        <div class="source-tag"><span class="dot"></span>${escapeHtml(et.source)}</div>
-        <div>
-          <button class="edit-btn">Editar</button>
-          <button class="delete-btn">Eliminar</button>
+        <div class="label-meta">
+          <div class="source-tag"><span class="dot"></span>${escapeHtml(et.source)}</div>
+          <div>
+            <button class="edit-btn">Editar</button>
+            <button class="delete-btn">Eliminar</button>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      card.innerHTML = `
+        <input type="checkbox" class="check" ${et.selected ? 'checked' : ''}>
+        <div class="slot-label">
+          <div class="label-item">${et.item ? escapeHtml(et.item) : '<span style="color:var(--muted);font-weight:600;">Sin nombre de producto</span>'}</div>
+          <div class="barcode-area">
+            <svg class="barcode-svg"></svg>
+          </div>
+          <div class="slot-id">${escapeHtml(et.upc)}</div>
+        </div>
+        <div class="label-meta">
+          <div class="source-tag"><span class="dot"></span>${escapeHtml(et.source)}</div>
+          <div>
+            <button class="edit-btn">Editar</button>
+            <button class="delete-btn">Eliminar</button>
+          </div>
+        </div>
+      `;
+    }
 
     grid.appendChild(card);
 
@@ -273,7 +301,7 @@ function escapeHtml(str){
 // CRUD DE ETIQUETAS
 // =========================================================
 
-function agregarEtiqueta(upc, item, source){
+function agregarEtiqueta(upc, item, source, tipo){
   upc = String(upc).trim();
   if(!upc) return null;
   const et = {
@@ -281,7 +309,8 @@ function agregarEtiqueta(upc, item, source){
     upc,
     item: item ? String(item).trim() : '',
     source: source || 'Manual',
-    selected: true
+    selected: true,
+    tipo: tipo || 'producto'
   };
   etiquetas.push(et);
   return et;
@@ -293,15 +322,42 @@ function eliminarEtiqueta(id){
 }
 
 function limpiarTodo(){
-  if(etiquetas.length === 0) return;
-  const ok = confirm('¿Eliminar todas las etiquetas generadas? También se borrarán los datos guardados en este navegador. Esta acción no se puede deshacer.');
+  const deVista = etiquetas.filter(e => (e.tipo || 'producto') === vistaActual);
+  if(deVista.length === 0) return;
+  const nombre = vistaActual === 'slot' ? 'ubicaciones' : 'etiquetas de productos';
+  const ok = confirm(`¿Eliminar todas las ${nombre}? Esta acción no se puede deshacer.`);
   if(ok){
-    etiquetas = [];
+    etiquetas = etiquetas.filter(e => (e.tipo || 'producto') !== vistaActual);
     filtroOrigen = 'todos';
     importQueue.innerHTML = '';
-    try{ localStorage.removeItem(STORAGE_KEY); }catch(err){}
     render();
   }
+}
+
+// =========================================================
+// CAMBIO DE VISTA (pestañas del sidebar)
+// =========================================================
+
+function cambiarVista(vista){
+  vistaActual = vista;
+  filtroOrigen = 'todos';
+  buscador.value = '';
+
+  const esSlot = vista === 'slot';
+
+  document.getElementById('navProductos').classList.toggle('active', !esSlot);
+  document.getElementById('navSlots').classList.toggle('active', esSlot);
+  document.getElementById('tituloVista').textContent = esSlot ? 'Ubicaciones (slots)' : 'Etiquetas de productos';
+  document.getElementById('tituloImport').textContent = esSlot ? 'Importar ubicaciones desde Excel' : 'Importar códigos desde Excel';
+  document.getElementById('hintImport').textContent = esSlot ? 'Columna: NAME / SLOT / UBICACIÓN' : 'Columnas: UPC · ITEM';
+  document.getElementById('dzTitle').textContent = esSlot ? 'Arrastra tu archivo Excel con las ubicaciones' : 'Arrastra tu archivo Excel con los códigos';
+  document.getElementById('dzSub').innerHTML = esSlot
+    ? 'Con una columna con el código de cada slot (ej. <strong>S5003</strong>). Se genera una etiqueta por ubicación con letra grande.'
+    : 'Debe tener una columna <strong>UPC</strong> (ej. 0304040504050406) y opcionalmente <strong>ITEM</strong> con el nombre del producto (ej. PAPA SOLOMA 454 G)';
+  document.getElementById('btnAgregarManualTexto').textContent = esSlot ? 'Agregar ubicación' : 'Agregar manual';
+  buscador.placeholder = esSlot ? 'Buscar ubicación...' : 'Buscar por UPC o item...';
+
+  render();
 }
 
 // =========================================================
@@ -310,7 +366,11 @@ function limpiarTodo(){
 
 function abrirModalNuevo(){
   editandoId = null;
-  modalTitulo.textContent = 'Nueva etiqueta';
+  const esSlot = vistaActual === 'slot';
+  modalTitulo.textContent = esSlot ? 'Nueva ubicación' : 'Nueva etiqueta';
+  document.getElementById('labelUPC').textContent = esSlot ? 'Código de ubicación' : 'Código UPC';
+  inputUPC.placeholder = esSlot ? 'Ej. S5003' : 'Ej. 0304040504050406';
+  document.getElementById('grupoItem').style.display = esSlot ? 'none' : 'contents';
   inputUPC.value = '';
   inputItem.value = '';
   modalOverlay.classList.add('visible');
@@ -321,7 +381,10 @@ function abrirModalEditar(id){
   const et = etiquetas.find(e => e.id === id);
   if(!et) return;
   editandoId = id;
-  modalTitulo.textContent = 'Editar etiqueta';
+  const esSlot = (et.tipo || 'producto') === 'slot';
+  modalTitulo.textContent = esSlot ? 'Editar ubicación' : 'Editar etiqueta';
+  document.getElementById('labelUPC').textContent = esSlot ? 'Código de ubicación' : 'Código UPC';
+  document.getElementById('grupoItem').style.display = esSlot ? 'none' : 'contents';
   inputUPC.value = et.upc;
   inputItem.value = et.item;
   modalOverlay.classList.add('visible');
@@ -350,7 +413,7 @@ function guardarModal(){
       et.item = item;
     }
   } else {
-    agregarEtiqueta(upc, item, 'Manual');
+    agregarEtiqueta(upc, vistaActual === 'slot' ? '' : item, 'Manual', vistaActual);
   }
   cerrarModal();
   render();
@@ -376,7 +439,28 @@ function procesarArchivo(file){
         return;
       }
 
-      // Detectar nombres de columna de forma flexible (may�sculas/espacios)
+      let agregados = 0;
+
+      if(vistaActual === 'slot'){
+        // SLOTS: una sola columna con el código de ubicación
+        // Detectar columna flexible (Name, Slot, Ubicación, Location...) o usar la primera
+        const columnas = Object.keys(filas[0]);
+        const colSlot = columnas.find(c => /name|slot|ubicaci|location|codigo|c\u00f3digo/i.test(c)) || columnas[0];
+
+        filas.forEach(fila => {
+          const codigo = fila[colSlot];
+          if(codigo !== '' && codigo !== undefined && codigo !== null){
+            agregarEtiqueta(codigo, '', file.name, 'slot');
+            agregados++;
+          }
+        });
+
+        marcarListo(queueItem, `${agregados} ubicaciones importadas`);
+        render();
+        return;
+      }
+
+      // PRODUCTOS: columnas UPC + ITEM
       const columnas = Object.keys(filas[0]);
       const colUPC = columnas.find(c => /upc|codigo|c\u00f3digo|barra/i.test(c));
       const colItem = columnas.find(c => /item|referencia|descripcion|descripci\u00f3n|producto/i.test(c));
@@ -386,12 +470,11 @@ function procesarArchivo(file){
         return;
       }
 
-      let agregados = 0;
       filas.forEach(fila => {
         const upc = fila[colUPC];
         const item = colItem ? fila[colItem] : '';
         if(upc !== '' && upc !== undefined && upc !== null){
-          agregarEtiqueta(upc, item, file.name);
+          agregarEtiqueta(upc, item, file.name, 'producto');
           agregados++;
         }
       });
@@ -459,7 +542,7 @@ function calcularGrid(porPagina){
 // =========================================================
 
 function imprimirSeleccionadas(){
-  const seleccionadas = etiquetas.filter(e => e.selected);
+  const seleccionadas = seleccionadasDeVista();
   if(seleccionadas.length === 0) return;
 
   const porPagina = parseInt(printLayout.value, 10);
@@ -474,13 +557,19 @@ function imprimirSeleccionadas(){
     sheet.style.setProperty('--filas-hoja', filas);
 
     grupo.forEach(et => {
+      const esSlot = (et.tipo || 'producto') === 'slot';
       const label = document.createElement('div');
-      label.className = 'print-label';
-      label.innerHTML = `
-        <div class="label-item">${et.item ? escapeHtml(et.item) : ''}</div>
-        <div class="barcode-area"><svg class="print-barcode-svg"></svg></div>
-        <div class="slot-id">${escapeHtml(et.upc)}</div>
-      `;
+      label.className = 'print-label' + (esSlot ? ' loc' : '');
+      label.innerHTML = esSlot
+        ? `
+          <div class="barcode-area"><svg class="print-barcode-svg"></svg></div>
+          <div class="slot-id">${escapeHtml(et.upc)}</div>
+        `
+        : `
+          <div class="label-item">${et.item ? escapeHtml(et.item) : ''}</div>
+          <div class="barcode-area"><svg class="print-barcode-svg"></svg></div>
+          <div class="slot-id">${escapeHtml(et.upc)}</div>
+        `;
       sheet.appendChild(label);
     });
 
@@ -587,18 +676,26 @@ function nombreArchivoBase(){
 // =========================================================
 
 async function exportarExcel(){
-  const seleccionadas = etiquetas.filter(e => e.selected);
+  const seleccionadas = seleccionadasDeVista();
   if(seleccionadas.length === 0) return;
 
-  const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet('Etiquetas');
+  const esVistaSlots = vistaActual === 'slot';
 
-  // Columnas: ITEM | CÓDIGO DE BARRAS (imagen) | UPC
-  ws.columns = [
-    { header: 'ITEM', key: 'item', width: 34 },
-    { header: 'CÓDIGO DE BARRAS', key: 'barcode', width: 38 },
-    { header: 'UPC', key: 'upc', width: 24 }
-  ];
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(esVistaSlots ? 'Ubicaciones' : 'Etiquetas');
+
+  if(esVistaSlots){
+    ws.columns = [
+      { header: 'UBICACIÓN', key: 'item', width: 24 },
+      { header: 'CÓDIGO DE BARRAS', key: 'barcode', width: 38 }
+    ];
+  } else {
+    ws.columns = [
+      { header: 'ITEM', key: 'item', width: 34 },
+      { header: 'CÓDIGO DE BARRAS', key: 'barcode', width: 38 },
+      { header: 'UPC', key: 'upc', width: 24 }
+    ];
+  }
 
   // Estilo del encabezado
   const head = ws.getRow(1);
@@ -613,12 +710,18 @@ async function exportarExcel(){
   const ALTO_FILA = 52; // puntos, para que quepa el código de barras
 
   seleccionadas.forEach((et, i) => {
-    const fila = ws.addRow({ item: et.item || '', barcode: '', upc: String(et.upc) });
+    const fila = esVistaSlots
+      ? ws.addRow({ item: String(et.upc), barcode: '' })
+      : ws.addRow({ item: et.item || '', barcode: '', upc: String(et.upc) });
     fila.height = ALTO_FILA;
-    fila.getCell('item').alignment = { vertical: 'middle', wrapText: true };
-    fila.getCell('item').font = { bold: true, size: 11 };
-    fila.getCell('upc').alignment = { vertical: 'middle', horizontal: 'center' };
-    fila.getCell('upc').font = { name: 'Courier New', size: 11 };
+    fila.getCell('item').alignment = { vertical: 'middle', wrapText: true, horizontal: esVistaSlots ? 'center' : 'left' };
+    fila.getCell('item').font = esVistaSlots
+      ? { bold: true, size: 20, name: 'Courier New' }
+      : { bold: true, size: 11 };
+    if(!esVistaSlots){
+      fila.getCell('upc').alignment = { vertical: 'middle', horizontal: 'center' };
+      fila.getCell('upc').font = { name: 'Courier New', size: 11 };
+    }
     fila.eachCell(c => {
       c.border = {
         top: { style: 'thin' }, bottom: { style: 'thin' },
@@ -652,7 +755,7 @@ async function exportarExcel(){
 // =========================================================
 
 function exportarPDF(){
-  const seleccionadas = etiquetas.filter(e => e.selected);
+  const seleccionadas = seleccionadasDeVista();
   if(seleccionadas.length === 0) return;
 
   const { jsPDF } = window.jspdf;
@@ -677,13 +780,32 @@ function exportarPDF(){
     const fila = Math.floor(posEnPagina / cols);
     const x = margen + col * (anchoCelda + gap);
     const y = margen + fila * (altoCelda + gap);
+    const esSlot = (et.tipo || 'producto') === 'slot';
 
     // Marco de la etiqueta
     doc.setDrawColor(0);
     doc.setLineWidth(0.3);
     doc.rect(x, y, anchoCelda, altoCelda);
 
-    // Nombre del producto
+    if(esSlot){
+      // UBICACIÓN: código de barras arriba, ID gigante en negrita abajo
+      const tamId = compacta ? 13 : (cols <= 2 ? 30 : 22);
+      const altoTextoId = compacta ? 6 : (cols <= 2 ? 13 : 10);
+
+      const png = barcodeAPngDataUrl(et.upc);
+      if(png){
+        const imgAlto = altoCelda - altoTextoId - 4;
+        const imgAncho = anchoCelda - (compacta ? 3 : 8);
+        doc.addImage(png, 'PNG', x + (anchoCelda - imgAncho)/2, y + 2, imgAncho, Math.max(imgAlto, 4));
+      }
+
+      doc.setFontSize(tamId);
+      doc.setFont('courier', 'bold');
+      doc.text(String(et.upc), x + anchoCelda/2, y + altoCelda - 2.5, { align: 'center' });
+      return;
+    }
+
+    // PRODUCTO: nombre arriba, código, UPC abajo (igual que antes)
     const tamNombre = compacta ? 6.5 : 9;
     doc.setFontSize(tamNombre);
     doc.setFont(undefined, 'bold');
@@ -693,7 +815,6 @@ function exportarPDF(){
     doc.setLineWidth(0.25);
     doc.line(x, y + altoTitulo, x + anchoCelda, y + altoTitulo);
 
-    // Código de barras
     const png = barcodeAPngDataUrl(et.upc);
     if(png){
       const margenTexto = compacta ? 6 : 8;
@@ -702,7 +823,6 @@ function exportarPDF(){
       doc.addImage(png, 'PNG', x + (anchoCelda - imgAncho)/2, y + altoTitulo + 1.5, imgAncho, Math.max(imgAlto, 4));
     }
 
-    // UPC como texto
     doc.setFontSize(compacta ? 6 : 8);
     doc.setFont('courier', 'normal');
     doc.text(String(et.upc), x + anchoCelda/2, y + altoCelda - 1.8, { align: 'center' });
@@ -716,7 +836,7 @@ function exportarPDF(){
 // =========================================================
 
 async function exportarWord(){
-  const seleccionadas = etiquetas.filter(e => e.selected);
+  const seleccionadas = seleccionadasDeVista();
   if(seleccionadas.length === 0) return;
 
   const { Document, Packer, Table, TableRow, TableCell, Paragraph, ImageRun, TextRun, WidthType, AlignmentType, BorderStyle, HeightRule } = window.docx;
@@ -758,29 +878,52 @@ async function exportarWord(){
     right: { style: BorderStyle.SINGLE, size: 8, color: '000000' }
   };
 
+  // Tamaño del ID de ubicación según densidad (half-points)
+  const tamIdSlot = compacta ? 26 : (cols <= 2 ? 56 : 40); // 13pt / 28pt / 20pt
+
   function celdaEtiqueta(et){
+    const esSlot = (et.tipo || 'producto') === 'slot';
     const png = barcodeAPngDataUrl(et.upc);
-    const hijos = [
-      new Paragraph({
+    const hijos = [];
+
+    if(esSlot){
+      // UBICACIÓN: código de barras + ID gigante en negrita
+      if(png){
+        hijos.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 30 },
+          children: [new ImageRun({
+            data: dataUrlABuffer(png),
+            transformation: { width: anchoImgPx, height: altoImgPx }
+          })]
+        }));
+      }
+      hijos.push(new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 20 },
-        children: [new TextRun({ text: et.item || ' ', bold: true, size: tamNombre })]
-      })
-    ];
-    if(png){
+        children: [new TextRun({ text: String(et.upc), font: 'Courier New', bold: true, size: tamIdSlot })]
+      }));
+    } else {
+      // PRODUCTO: nombre + código + UPC
       hijos.push(new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 20 },
-        children: [new ImageRun({
-          data: dataUrlABuffer(png),
-          transformation: { width: anchoImgPx, height: altoImgPx }
-        })]
+        children: [new TextRun({ text: et.item || ' ', bold: true, size: tamNombre })]
+      }));
+      if(png){
+        hijos.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 20 },
+          children: [new ImageRun({
+            data: dataUrlABuffer(png),
+            transformation: { width: anchoImgPx, height: altoImgPx }
+          })]
+        }));
+      }
+      hijos.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: String(et.upc), font: 'Courier New', size: tamUpc })]
       }));
     }
-    hijos.push(new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: String(et.upc), font: 'Courier New', size: tamUpc })]
-    }));
 
     return new TableCell({
       borders: bordeCelda,
@@ -864,7 +1007,7 @@ downloadMenu.addEventListener('click', async (e) => {
   const btn = e.target.closest('button[data-formato]');
   if(!btn) return;
 
-  const seleccionadas = etiquetas.filter(x => x.selected);
+  const seleccionadas = seleccionadasDeVista();
   if(seleccionadas.length === 0) return;
 
   const formato = btn.dataset.formato;
@@ -894,6 +1037,10 @@ if(selectOrden){
     render();
   });
 }
+
+// Navegación entre pestañas
+document.getElementById('navProductos').addEventListener('click', () => cambiarVista('producto'));
+document.getElementById('navSlots').addEventListener('click', () => cambiarVista('slot'));
 
 // Cargar datos guardados de sesiones anteriores y render inicial
 cargarEstado();
