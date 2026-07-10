@@ -719,7 +719,7 @@ async function exportarWord(){
   const seleccionadas = etiquetas.filter(e => e.selected);
   if(seleccionadas.length === 0) return;
 
-  const { Document, Packer, Table, TableRow, TableCell, Paragraph, ImageRun, TextRun, WidthType, AlignmentType, BorderStyle } = window.docx;
+  const { Document, Packer, Table, TableRow, TableCell, Paragraph, ImageRun, TextRun, WidthType, AlignmentType, BorderStyle, HeightRule } = window.docx;
 
   function dataUrlABuffer(dataUrl){
     const base64 = dataUrl.split(',')[1];
@@ -729,15 +729,27 @@ async function exportarWord(){
     return bytes;
   }
 
-  // Usar el mismo layout que el PDF/impresión (columnas según selector)
+  // Mismo layout que PDF/impresión
   const porPagina = parseInt(printLayout.value, 10);
-  let { cols } = calcularGrid(porPagina);
-  if(cols > 4) cols = 4; // Word se ve mejor con máx 4 columnas
+  const { cols, filas: filasPorPagina } = calcularGrid(porPagina);
+  const compacta = porPagina >= 18;
 
-  // Ancho útil de página carta en Word: ~9360 twips (8.5in - 2in márgenes aprox)
-  // Imagen: ancho en px proporcional al número de columnas
-  const anchoImgPx = Math.floor(660 / cols) - 14;
-  const altoImgPx = cols >= 4 ? 42 : 55;
+  // Alto útil de página carta con márgenes 0.5in: 11in - 1in = 10in = 14400 twips
+  // Se reparte exacto entre las filas de la página (con margencito de seguridad)
+  const altoUtilTwips = 14100;
+  const altoFilaTwips = Math.floor(altoUtilTwips / filasPorPagina);
+
+  // Convertir a puntos para calcular el alto de la imagen (1 punto = 20 twips)
+  const altoFilaPts = altoFilaTwips / 20;
+  // Reservar espacio para nombre + UPC + márgenes internos
+  const reservaTextoPts = compacta ? 32 : 40;
+  const altoImgPx = Math.max(18, Math.floor((altoFilaPts - reservaTextoPts) * 96 / 72));
+
+  // Ancho de imagen proporcional a las columnas (ancho útil ~7.5in = 720px)
+  const anchoImgPx = Math.max(60, Math.floor(700 / cols) - 16);
+
+  const tamNombre = compacta ? 13 : 17; // half-points: 6.5pt / 8.5pt
+  const tamUpc = compacta ? 12 : 15;
 
   const bordeCelda = {
     top: { style: BorderStyle.SINGLE, size: 8, color: '000000' },
@@ -751,14 +763,14 @@ async function exportarWord(){
     const hijos = [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 40 },
-        children: [new TextRun({ text: et.item || ' ', bold: true, size: 17 })] // size en half-points (17 = 8.5pt)
+        spacing: { after: 20 },
+        children: [new TextRun({ text: et.item || ' ', bold: true, size: tamNombre })]
       })
     ];
     if(png){
       hijos.push(new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 30 },
+        spacing: { after: 20 },
         children: [new ImageRun({
           data: dataUrlABuffer(png),
           transformation: { width: anchoImgPx, height: altoImgPx }
@@ -767,12 +779,12 @@ async function exportarWord(){
     }
     hijos.push(new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: String(et.upc), font: 'Courier New', size: 15 })]
+      children: [new TextRun({ text: String(et.upc), font: 'Courier New', size: tamUpc })]
     }));
 
     return new TableCell({
       borders: bordeCelda,
-      margins: { top: 80, bottom: 80, left: 60, right: 60 },
+      margins: { top: 40, bottom: 40, left: 50, right: 50 },
       width: { size: Math.floor(100 / cols), type: WidthType.PERCENTAGE },
       children: hijos
     });
@@ -789,13 +801,32 @@ async function exportarWord(){
     });
   }
 
-  // Agrupar en filas de `cols` etiquetas
-  const filas = [];
-  for(let i = 0; i < seleccionadas.length; i += cols){
-    const grupo = seleccionadas.slice(i, i + cols);
-    const celdas = grupo.map(et => celdaEtiqueta(et));
-    while(celdas.length < cols) celdas.push(celdaVacia()); // completar fila
-    filas.push(new TableRow({ children: celdas }));
+  // Construir una tabla por página, con salto de página entre cada una
+  const hijosDocumento = [];
+
+  for(let p = 0; p < seleccionadas.length; p += porPagina){
+    const grupoPagina = seleccionadas.slice(p, p + porPagina);
+
+    // Salto de página antes de cada tabla excepto la primera
+    if(p > 0){
+      hijosDocumento.push(new Paragraph({ pageBreakBefore: true, spacing: { after: 0, before: 0 } }));
+    }
+
+    const filasTabla = [];
+    for(let i = 0; i < grupoPagina.length; i += cols){
+      const grupoFila = grupoPagina.slice(i, i + cols);
+      const celdas = grupoFila.map(et => celdaEtiqueta(et));
+      while(celdas.length < cols) celdas.push(celdaVacia());
+      filasTabla.push(new TableRow({
+        children: celdas,
+        height: { value: altoFilaTwips, rule: HeightRule.EXACT }
+      }));
+    }
+
+    hijosDocumento.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: filasTabla
+    }));
   }
 
   const documento = new Document({
@@ -803,12 +834,7 @@ async function exportarWord(){
       properties: {
         page: { margin: { top: 720, bottom: 720, left: 720, right: 720 } } // 0.5in
       },
-      children: [
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: filas
-        })
-      ]
+      children: hijosDocumento
     }]
   });
 
