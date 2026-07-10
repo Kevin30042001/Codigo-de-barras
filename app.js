@@ -583,25 +583,68 @@ function nombreArchivoBase(){
 }
 
 // =========================================================
-// EXPORTAR A EXCEL (.xlsx)
+// EXPORTAR A EXCEL (.xlsx) — con imagen del código en cada fila
 // =========================================================
 
-function exportarExcel(){
+async function exportarExcel(){
   const seleccionadas = etiquetas.filter(e => e.selected);
   if(seleccionadas.length === 0) return;
 
-  const datos = seleccionadas.map(e => ({
-    'UPC': e.upc,
-    'ITEM': e.item,
-    'Origen': e.source
-  }));
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Etiquetas');
 
-  const hoja = XLSX.utils.json_to_sheet(datos);
-  hoja['!cols'] = [{ wch: 22 }, { wch: 35 }, { wch: 28 }];
+  // Columnas: ITEM | CÓDIGO DE BARRAS (imagen) | UPC
+  ws.columns = [
+    { header: 'ITEM', key: 'item', width: 34 },
+    { header: 'CÓDIGO DE BARRAS', key: 'barcode', width: 38 },
+    { header: 'UPC', key: 'upc', width: 24 }
+  ];
 
-  const libro = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(libro, hoja, 'Etiquetas');
-  XLSX.writeFile(libro, `${nombreArchivoBase()}.xlsx`);
+  // Estilo del encabezado
+  const head = ws.getRow(1);
+  head.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  head.alignment = { horizontal: 'center', vertical: 'middle' };
+  head.height = 22;
+  head.eachCell(c => {
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0E1412' } };
+    c.border = { bottom: { style: 'medium' } };
+  });
+
+  const ALTO_FILA = 52; // puntos, para que quepa el código de barras
+
+  seleccionadas.forEach((et, i) => {
+    const fila = ws.addRow({ item: et.item || '', barcode: '', upc: String(et.upc) });
+    fila.height = ALTO_FILA;
+    fila.getCell('item').alignment = { vertical: 'middle', wrapText: true };
+    fila.getCell('item').font = { bold: true, size: 11 };
+    fila.getCell('upc').alignment = { vertical: 'middle', horizontal: 'center' };
+    fila.getCell('upc').font = { name: 'Courier New', size: 11 };
+    fila.eachCell(c => {
+      c.border = {
+        top: { style: 'thin' }, bottom: { style: 'thin' },
+        left: { style: 'thin' }, right: { style: 'thin' }
+      };
+    });
+
+    // Insertar imagen del código de barras en la columna B
+    const png = barcodeAPngDataUrl(et.upc);
+    if(png){
+      const imgId = wb.addImage({ base64: png, extension: 'png' });
+      ws.addImage(imgId, {
+        tl: { col: 1.08, row: i + 1 + 0.12 }, // col B (índice 1), fila de datos
+        ext: { width: 230, height: 56 }
+      });
+    }
+  });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${nombreArchivoBase()}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // =========================================================
@@ -669,14 +712,14 @@ function exportarPDF(){
 }
 
 // =========================================================
-// EXPORTAR A WORD (.docx) — tabla con imagen del código
+// EXPORTAR A WORD (.docx) — cuadrícula de etiquetas como el PDF
 // =========================================================
 
 async function exportarWord(){
   const seleccionadas = etiquetas.filter(e => e.selected);
   if(seleccionadas.length === 0) return;
 
-  const { Document, Packer, Table, TableRow, TableCell, Paragraph, ImageRun, TextRun, WidthType, HeadingLevel } = window.docx;
+  const { Document, Packer, Table, TableRow, TableCell, Paragraph, ImageRun, TextRun, WidthType, AlignmentType, BorderStyle } = window.docx;
 
   function dataUrlABuffer(dataUrl){
     const base64 = dataUrl.split(',')[1];
@@ -686,46 +729,84 @@ async function exportarWord(){
     return bytes;
   }
 
-  const filasCabecera = new TableRow({
-    tableHeader: true,
-    children: ['UPC', 'ITEM', 'CÓDIGO DE BARRAS'].map(texto =>
-      new TableCell({
-        children: [new Paragraph({ children: [new TextRun({ text: texto, bold: true })] })],
-        width: { size: texto === 'CÓDIGO DE BARRAS' ? 40 : 30, type: WidthType.PERCENTAGE }
-      })
-    )
-  });
+  // Usar el mismo layout que el PDF/impresión (columnas según selector)
+  const porPagina = parseInt(printLayout.value, 10);
+  let { cols } = calcularGrid(porPagina);
+  if(cols > 4) cols = 4; // Word se ve mejor con máx 4 columnas
 
-  const filasDatos = seleccionadas.map(et => {
+  // Ancho útil de página carta en Word: ~9360 twips (8.5in - 2in márgenes aprox)
+  // Imagen: ancho en px proporcional al número de columnas
+  const anchoImgPx = Math.floor(660 / cols) - 14;
+  const altoImgPx = cols >= 4 ? 42 : 55;
+
+  const bordeCelda = {
+    top: { style: BorderStyle.SINGLE, size: 8, color: '000000' },
+    bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000' },
+    left: { style: BorderStyle.SINGLE, size: 8, color: '000000' },
+    right: { style: BorderStyle.SINGLE, size: 8, color: '000000' }
+  };
+
+  function celdaEtiqueta(et){
     const png = barcodeAPngDataUrl(et.upc);
-    const celdaImagen = png
-      ? new TableCell({
-          children: [new Paragraph({
-            children: [new ImageRun({
-              data: dataUrlABuffer(png),
-              transformation: { width: 220, height: 60 }
-            })]
-          })]
-        })
-      : new TableCell({ children: [new Paragraph('—')] });
+    const hijos = [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 40 },
+        children: [new TextRun({ text: et.item || ' ', bold: true, size: 17 })] // size en half-points (17 = 8.5pt)
+      })
+    ];
+    if(png){
+      hijos.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 30 },
+        children: [new ImageRun({
+          data: dataUrlABuffer(png),
+          transformation: { width: anchoImgPx, height: altoImgPx }
+        })]
+      }));
+    }
+    hijos.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: String(et.upc), font: 'Courier New', size: 15 })]
+    }));
 
-    return new TableRow({
-      children: [
-        new TableCell({ children: [new Paragraph(String(et.upc))] }),
-        new TableCell({ children: [new Paragraph(et.item || '—')] }),
-        celdaImagen
-      ]
+    return new TableCell({
+      borders: bordeCelda,
+      margins: { top: 80, bottom: 80, left: 60, right: 60 },
+      width: { size: Math.floor(100 / cols), type: WidthType.PERCENTAGE },
+      children: hijos
     });
-  });
+  }
+
+  function celdaVacia(){
+    return new TableCell({
+      borders: {
+        top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+        left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }
+      },
+      width: { size: Math.floor(100 / cols), type: WidthType.PERCENTAGE },
+      children: [new Paragraph('')]
+    });
+  }
+
+  // Agrupar en filas de `cols` etiquetas
+  const filas = [];
+  for(let i = 0; i < seleccionadas.length; i += cols){
+    const grupo = seleccionadas.slice(i, i + cols);
+    const celdas = grupo.map(et => celdaEtiqueta(et));
+    while(celdas.length < cols) celdas.push(celdaVacia()); // completar fila
+    filas.push(new TableRow({ children: celdas }));
+  }
 
   const documento = new Document({
     sections: [{
+      properties: {
+        page: { margin: { top: 720, bottom: 720, left: 720, right: 720 } } // 0.5in
+      },
       children: [
-        new Paragraph({ text: 'Etiquetas de código de barras', heading: HeadingLevel.HEADING_1 }),
-        new Paragraph({ text: 'WMS·IT · Hortifruti · Centro de distribución Santa Tecla', spacing: { after: 300 } }),
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [filasCabecera, ...filasDatos]
+          rows: filas
         })
       ]
     }]
@@ -766,7 +847,7 @@ downloadMenu.addEventListener('click', async (e) => {
   btn.disabled = true;
 
   try{
-    if(formato === 'excel') exportarExcel();
+    if(formato === 'excel') await exportarExcel();
     else if(formato === 'pdf') exportarPDF();
     else if(formato === 'word') await exportarWord();
   }catch(err){
