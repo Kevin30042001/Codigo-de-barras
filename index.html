@@ -26,9 +26,13 @@
   <aside class="sidebar">
     <div class="brand"><span class="mark">W</span> WMS · IT</div>
     <div class="nav-section">General</div>
-    <a class="nav-item active">
+    <a class="nav-item active" id="navProductos">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="2" height="10"/><rect x="7" y="7" width="1" height="10"/><rect x="10" y="7" width="3" height="10"/><rect x="15" y="7" width="1" height="10"/><rect x="18" y="7" width="2" height="10"/></svg>
-      Etiquetas de código de barras
+      Etiquetas de productos
+    </a>
+    <a class="nav-item" id="navSlots">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Ubicaciones (slots)
     </a>
     <div class="sidebar-foot"><div class="avatar">KC</div> Kevin Chávez</div>
   </aside>
@@ -37,7 +41,7 @@
   <main>
     <div class="topbar">
       <div>
-        <h1>Etiquetas de código de barras</h1>
+        <h1 id="tituloVista">Etiquetas de productos</h1>
         <div class="sub">Hortifruti · Centro de distribución Santa Tecla</div>
       </div>
       <div class="topbar-right">
@@ -47,7 +51,7 @@
         </button>
         <button class="btn-primary" id="btnAgregarManual">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          Agregar manual
+          <span id="btnAgregarManualTexto">Agregar manual</span>
         </button>
       </div>
     </div>
@@ -56,8 +60,8 @@
 
       <!-- IMPORTAR DESDE EXCEL -->
       <div class="section-head">
-        <h2>Importar códigos desde Excel</h2>
-        <span class="hint">Columnas: UPC · ITEM</span>
+        <h2 id="tituloImport">Importar códigos desde Excel</h2>
+        <span class="hint" id="hintImport">Columnas: UPC · ITEM</span>
       </div>
       <div class="import-panel">
         <div class="import-body">
@@ -69,8 +73,8 @@
               </svg>
             </div>
             <div class="dz-text">
-              <p class="dz-title">Arrastra tu archivo Excel con los códigos</p>
-              <p class="dz-sub">Debe tener una columna <strong>UPC</strong> (ej. 0304040504050406) y opcionalmente <strong>ITEM</strong> con el nombre del producto (ej. PAPA SOLOMA 454 G)</p>
+              <p class="dz-title" id="dzTitle">Arrastra tu archivo Excel con los códigos</p>
+              <p class="dz-sub" id="dzSub">Debe tener una columna <strong>UPC</strong> (ej. 0304040504050406) y opcionalmente <strong>ITEM</strong> con el nombre del producto (ej. PAPA SOLOMA 454 G)</p>
               <div class="dz-formats">
                 <span>.XLSX</span>
                 <span>.XLS</span>
@@ -162,10 +166,12 @@
         <button class="modal-close" id="modalClose">&times;</button>
       </div>
       <div class="modal-body">
-        <label class="field-label">Código UPC</label>
+        <label class="field-label" id="labelUPC">Código UPC</label>
         <input type="text" id="inputUPC" class="field-input" placeholder="Ej. 0304040504050406">
-        <label class="field-label">Nombre del producto (item)</label>
-        <input type="text" id="inputItem" class="field-input" placeholder="Ej. PAPA SOLOMA 454 G">
+        <div id="grupoItem" style="display:contents;">
+          <label class="field-label">Nombre del producto (item)</label>
+          <input type="text" id="inputItem" class="field-input" placeholder="Ej. PAPA SOLOMA 454 G">
+        </div>
       </div>
       <div class="modal-foot">
         <button class="btn-ghost" id="btnCancelarModal">Cancelar</button>
