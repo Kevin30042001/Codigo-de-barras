@@ -512,11 +512,12 @@ body{
 
   /* Etiquetas de ubicación (slot): ID grande y negrita fuerte */
   .print-label.loc .slot-id{
-    font-size:26px; font-weight:800; letter-spacing:.05em; line-height:1;
+    font-size:38px; font-weight:800; letter-spacing:.04em; line-height:1;
     padding:2px 2px 6px;
   }
-  .print-sheet.cols-3 .print-label.loc .slot-id{ font-size:20px; }
-  .print-sheet.cols-4 .print-label.loc .slot-id{ font-size:16px; }
-  .print-sheet.cols-5 .print-label.loc .slot-id{ font-size:13px; }
+  .print-sheet.cols-2 .print-label.loc .slot-id{ font-size:34px; }
+  .print-sheet.cols-3 .print-label.loc .slot-id{ font-size:28px; }
+  .print-sheet.cols-4 .print-label.loc .slot-id{ font-size:22px; }
+  .print-sheet.cols-5 .print-label.loc .slot-id{ font-size:18px; }
   .print-label.loc .barcode-area{ padding:4px 10px 2px; }
 }
