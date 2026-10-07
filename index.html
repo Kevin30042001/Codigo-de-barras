@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WMS·IT — Etiquetas de código de barras</title>
+
+<!-- Fuentes -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
+
+<!-- Librerías externas (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+
+<!-- Diseño -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand"><span class="mark">W</span> WMS · IT</div>
+    <div class="nav-section">General</div>
+    <a class="nav-item active" id="navProductos">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="2" height="10"/><rect x="7" y="7" width="1" height="10"/><rect x="10" y="7" width="3" height="10"/><rect x="15" y="7" width="1" height="10"/><rect x="18" y="7" width="2" height="10"/></svg>
+      Etiquetas de productos
+    </a>
+    <a class="nav-item" id="navSlots">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Ubicaciones (slots)
+    </a>
+    <div class="sidebar-foot"><div class="avatar">KC</div> Kevin Chávez</div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div class="topbar">
+      <div>
+        <h1 id="tituloVista">Etiquetas de productos</h1>
+        <div class="sub">Hortifruti · Centro de distribución Santa Tecla</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-ghost" id="btnLimpiar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>
+          Limpiar todo
+        </button>
+        <button class="btn-primary" id="btnAgregarManual">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span id="btnAgregarManualTexto">Agregar manual</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- IMPORTAR DESDE EXCEL -->
+      <div class="section-head">
+        <h2 id="tituloImport">Importar códigos desde Excel</h2>
+        <span class="hint" id="hintImport">Columnas: UPC · ITEM</span>
+      </div>
+      <div class="import-panel">
+        <div class="import-body">
+          <div class="dropzone" id="dropzone">
+            <div class="dz-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-deep)" stroke-width="1.8">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6"/>
+              </svg>
+            </div>
+            <div class="dz-text">
+              <p class="dz-title" id="dzTitle">Arrastra tu archivo Excel con los códigos</p>
+              <p class="dz-sub" id="dzSub">Debe tener una columna <strong>UPC</strong> (ej. 0304040504050406) y opcionalmente <strong>ITEM</strong> con el nombre del producto (ej. PAPA SOLOMA 454 G)</p>
+              <div class="dz-formats">
+                <span>.XLSX</span>
+                <span>.XLS</span>
+                <span>.CSV</span>
+              </div>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+            <button class="btn-primary" id="btnSeleccionar">Seleccionar archivo</button>
+          </div>
+
+          <!-- Estado de importación -->
+          <div class="import-queue" id="importQueue"></div>
+        </div>
+      </div>
+
+      <!-- BARRA DE HERRAMIENTAS -->
+      <div class="section-head">
+        <h2>Etiquetas generadas</h2>
+        <span class="hint" id="totalCount">0 en total</span>
+      </div>
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <label class="select-all">
+            <input type="checkbox" id="checkAll">
+            Seleccionar todo
+          </label>
+          <span class="sel-count" id="selCount">0 seleccionadas</span>
+          <div class="filter-tabs" id="filterTabs"></div>
+        </div>
+        <div class="toolbar-right">
+          <select id="selectOrden" class="sort-select">
+            <option value="llegada">Orden de llegada</option>
+            <option value="item-az">Producto A → Z</option>
+            <option value="item-za">Producto Z → A</option>
+            <option value="upc-asc">UPC ascendente</option>
+            <option value="upc-desc">UPC descendente</option>
+          </select>
+          <div class="search-wrap">
+            <input type="text" id="buscador" class="search-input" placeholder="Buscar por UPC o item...">
+            <button type="button" id="btnMic" class="mic-btn" title="Buscar por voz" aria-label="Buscar por voz">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </button>
+            <div class="voz-status" id="vozStatus" role="status" aria-live="polite"></div>
+          </div>
+      </div>
+
+      <!-- GRID DE ETIQUETAS -->
+      <div class="grid" id="grid">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="2" height="10"/><rect x="7" y="7" width="1" height="10"/><rect x="10" y="7" width="3" height="10"/><rect x="15" y="7" width="1" height="10"/><rect x="18" y="7" width="2" height="10"/></svg>
+          </div>
+          <p class="empty-title">Todavía no hay etiquetas</p>
+          <p class="empty-sub">Importa un Excel o agrega una etiqueta manual para empezar</p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- BARRA FLOTANTE DE IMPRESIÓN -->
+  <div class="print-bar" id="printBar">
+    <div class="info"><strong id="printSelCount">0</strong> etiquetas seleccionadas</div>
+    <select id="printLayout">
+      <option value="8">Hoja carta · 8 por página</option>
+      <option value="12">Hoja carta · 12 por página</option>
+      <option value="18">Hoja carta · 18 por página</option>
+      <option value="24" selected>Hoja carta · 24 por página</option>
+      <option value="30">Hoja carta · 30 por página (compacta)</option>
+      <option value="1">Rollo continuo · 1 por etiqueta</option>
+    </select>
+    <button class="btn-print" id="btnImprimir">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Imprimir seleccionadas
+    </button>
+    <div class="download-menu-wrap">
+      <button class="btn-download" id="btnDescargarToggle">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Descargar
+      </button>
+      <div class="download-menu" id="downloadMenu">
+        <button data-formato="excel"><span class="fmt-dot fmt-excel"></span> Excel (.xlsx)</button>
+        <button data-formato="pdf"><span class="fmt-dot fmt-pdf"></span> PDF (.pdf)</button>
+        <button data-formato="word"><span class="fmt-dot fmt-word"></span> Word (.docx)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: AGREGAR/EDITAR ETIQUETA MANUAL -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitulo">Nueva etiqueta</h3>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label" id="labelUPC">Código UPC</label>
+        <input type="text" id="inputUPC" class="field-input" placeholder="Ej. 0304040504050406">
+        <div id="grupoItem" style="display:contents;">
+          <label class="field-label">Nombre del producto (item)</label>
+          <input type="text" id="inputItem" class="field-input" placeholder="Ej. PAPA SOLOMA 454 G">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="btnCancelarModal">Cancelar</button>
+        <button class="btn-primary" id="btnGuardarModal">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ÁREA DE IMPRESIÓN (se llena dinámicamente, solo visible en impresión) -->
+  <div id="printArea"></div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
