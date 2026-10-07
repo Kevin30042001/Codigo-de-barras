@@ -1128,6 +1128,15 @@ if(printFabToggle){
   });
 }
 
+// Tocar en cualquier otro lado de la pantalla (fuera de la barra) la cierra;
+// tocar dentro de ella (el select, los botones) no la cierra sola.
+document.addEventListener('click', (e) => {
+  if(printBar.classList.contains('expanded') && !printBar.contains(e.target)){
+    printBar.classList.remove('expanded');
+    if(printFabToggle) printFabToggle.setAttribute('aria-expanded', 'false');
+  }
+});
+
 // =========================================================
 // EVENTOS: menú de descarga
 // =========================================================
