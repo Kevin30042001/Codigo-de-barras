@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WMS·IT — Etiquetas de código de barras</title>
 
+<!-- PWA: instalable en celular/escritorio como mini app -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1F5D42">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Etiquetas CD">
+
 <!-- Fuentes -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
 
@@ -200,5 +209,14 @@
 </div>
 
 <script src="app.js"></script>
+<script>
+  // Registro del service worker (PWA instalable). Si falla (navegador sin
+  // soporte, o se abre con file://), la app sigue funcionando normal.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
 </body>
 </html>
