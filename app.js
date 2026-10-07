@@ -53,6 +53,8 @@ const btnMic = document.getElementById('btnMic');
 const vozStatus = document.getElementById('vozStatus');
 const printBar = document.getElementById('printBar');
 const printSelCount = document.getElementById('printSelCount');
+const printFabToggle = document.getElementById('printFabToggle');
+const printFabBadge = document.getElementById('printFabBadge');
 const printArea = document.getElementById('printArea');
 const importQueue = document.getElementById('importQueue');
 const btnDescargarToggle = document.getElementById('btnDescargarToggle');
@@ -234,8 +236,15 @@ function actualizarContadores(){
   const seleccionadas = seleccionadasDeVista().length;
   selCountEl.textContent = `${seleccionadas} seleccionadas`;
   printSelCount.textContent = seleccionadas;
+  if(printFabBadge) printFabBadge.textContent = seleccionadas;
 
-  printBar.classList.toggle('visible', seleccionadas > 0);
+  const hayAlgoSeleccionado = seleccionadas > 0;
+  printBar.classList.toggle('visible', hayAlgoSeleccionado);
+  if(!hayAlgoSeleccionado){
+    // Si ya no hay nada seleccionado, volvemos a dejar el FAB colapsado
+    // para la próxima vez (solo afecta la vista móvil).
+    printBar.classList.remove('expanded');
+  }
 
   checkAll.checked = visibles.length > 0 && visibles.every(e => e.selected);
 }
@@ -1107,6 +1116,19 @@ async function exportarWord(){
 }
 
 // =========================================================
+// EVENTOS: FAB de impresión (solo tiene efecto visual en celular;
+// en escritorio la barra ya se ve completa y este botón está oculto)
+// =========================================================
+
+if(printFabToggle){
+  printFabToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const expandido = printBar.classList.toggle('expanded');
+    printFabToggle.setAttribute('aria-expanded', expandido ? 'true' : 'false');
+  });
+}
+
+// =========================================================
 // EVENTOS: menú de descarga
 // =========================================================
 
@@ -1214,9 +1236,11 @@ render();
 
   function lanzarEscucha(lang){
     reconocimiento = crearReconocimiento(lang);
+    let huboError = false;
 
     reconocimiento.onstart = () => {
       escuchando = true;
+      huboError = false;
       btnMic.classList.add('listening');
       mostrarEstado('Escuchando…', 'info', 0);
     };
@@ -1239,6 +1263,7 @@ render();
         lanzarEscucha(IDIOMAS[idiomaIdx]);
         return;
       }
+      huboError = true;
       if(ev.error === 'not-allowed' || ev.error === 'permission-denied' || ev.error === 'service-not-allowed'){
         mostrarEstado('Permiso de micrófono denegado. Actívalo en la configuración del navegador.', 'error', 5000);
       } else if(ev.error === 'no-speech'){
@@ -1255,6 +1280,12 @@ render();
     reconocimiento.onend = () => {
       escuchando = false;
       btnMic.classList.remove('listening');
+      // Si terminó sin error, quitamos el "Escuchando…" de inmediato (antes se
+      // quedaba pegado porque esa llamada a mostrarEstado no tenía duración).
+      // Si hubo error, dejamos su propio mensaje con su temporizador intacto.
+      if(!huboError){
+        mostrarEstado('', '', 0);
+      }
     };
 
     try{
